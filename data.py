@@ -285,6 +285,10 @@ class TrainDataLoader():
         w.requires_grad_(False)
         return  X_query_cat, X_query_num, X_item_cat, X_item_num , w
         
+        
+if __name__ == "__main__":
+    getTrainArrays(useCached=False)
+        
 
 
     
