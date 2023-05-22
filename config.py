@@ -4,7 +4,7 @@ from data import QUERY_CAT_FEATURE_COLS, QUERY_NUM_FEATURE_COLS, ITEM_CAT_FEATUR
 defaultCatEmbeddingDim = 16
 
 
-maps_to_ind, _ = getMappings()
+maps_to_ind, _ = getMappings(train=True)
 
 #Default model config
 queryTowerCfg = mlc.ConfigDict()
