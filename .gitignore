@@ -1,7 +1,8 @@
 *.npy
 *.pkl
 *.csv
-./log
+log
 .ipynb_checkpoints
 __pycache__
 .DS_Store
+runs

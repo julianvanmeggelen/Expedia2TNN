@@ -32,7 +32,7 @@ modelCfg.embedding_dim = 16
 trainCfg = mlc.ConfigDict()
 trainCfg.n_epoch = 100
 trainCfg.batch_size = 16384
-trainCfg.lr = 0.001
+trainCfg.lr = 0.0003
 trainCfg.negFrac = 0.3
 trainCfg.crossFrac = 0.2
 
