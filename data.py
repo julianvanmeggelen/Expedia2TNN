@@ -6,13 +6,24 @@ import pickle
 import torch
 
 
+N_VAL_RECORDS = 100000
+
+RAW_TRAIN_DATA_PATH = 'training_set_raw.csv'
+RAW_VAL_DATA_PATH = 'val_set_raw.csv'
+
 MAPS_TO_IND_PATH = 'maps_to_ind.pkl'
 MAPS_FROM_IND_PATH = 'maps_from_ind.pkl'
+
 TRAIN_SET_PATH = 'train_set.pkl'
+VAL_SET_PATH = 'val_set.pkl'
 
 TRAIN_QUERY_ARRAY_PATH = 'train_query.npy'
 TRAIN_ITEM_ARRAY_PATH = 'train_item.npy'
 TRAIN_REL_ARRAY_PATH = 'train_rel.npy'
+
+VAL_QUERY_ARRAY_PATH = 'val_query.npy'
+VAL_ITEM_ARRAY_PATH = 'val_item.npy'
+VAL_REL_ARRAY_PATH = 'val_rel.npy'
 
 QUERY_NUM_FEATURE_COLS = [ #Cat columns first! 
     'visitor_hist_starrating'
@@ -21,14 +32,12 @@ QUERY_NUM_FEATURE_COLS = [ #Cat columns first!
     ,'orig_destination_distance'
 ]
 
-
 QUERY_NUM_INDICATOR_COLS = [
     'orig_destination_distance_isNaN'
     ,'srch_query_affinity_score_isNaN'
     ,'visitor_hist_adr_usd_isNaN'
     ,'visitor_hist_starrating_isNaN'
 ]
-
 
 QUERY_CAT_FEATURE_COLS = [ #Cat columns first! 
     'srch_id'
@@ -192,7 +201,7 @@ def getTrainData(useCached = True):
             print("Loaded train_data from disk")
             return df_train
     else:        
-        df_train = pd.read_csv('training_set_VU_DM.csv')
+        df_train = pd.read_csv(RAW_TRAIN_DATA_PATH)
         maps_to_ind, maps_from_ind = getMappings(df_train, train=True)
         df_train = applyMapping(df_train, maps_to_ind, inplace=True)
         df_train, nanIndicColumns = addNaNIndicator(df_train)
@@ -200,6 +209,22 @@ def getTrainData(useCached = True):
         with open(TRAIN_SET_PATH, 'wb') as handle:
             pickle.dump(df_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
         return df_train, nanIndicColumns
+    
+def getValData(useCached = True):
+    if os.path.exists(VAL_SET_PATH) and useCached:
+        with open(VAL_SET_PATH, 'rb') as handle:
+            df_val = pickle.load(handle)
+            print("Loaded val_data from disk")
+            return df_val
+    else:        
+        df_val = pd.read_csv(RAW_VAL_DATA_PATH)
+        maps_to_ind, maps_from_ind = getMappings(df_val, train=False)
+        df_val = applyMapping(df_val, maps_to_ind, inplace=True)
+        df_val, nanIndicColumns = addNaNIndicator(df_val)
+        #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
+        with open(VAL_SET_PATH, 'wb') as handle:
+            pickle.dump(df_val, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        return df_val, nanIndicColumns
 
 def getTrainArrays(useCached =True):
     if os.path.exists(TRAIN_QUERY_ARRAY_PATH) and useCached:
@@ -215,7 +240,32 @@ def getTrainArrays(useCached =True):
         np.save(arr= df_train_query, file=TRAIN_QUERY_ARRAY_PATH)
         np.save(arr= df_train_item, file=TRAIN_ITEM_ARRAY_PATH)
         np.save(arr= df_train_rel, file=TRAIN_REL_ARRAY_PATH)
-        return df_train_query, df_train_item, df_train_rel
+        return df_train_query, df_train_item
+
+def getValArrays(useCached =True):
+    if os.path.exists(VAL_QUERY_ARRAY_PATH) and useCached:
+        df_val_query = np.load(VAL_QUERY_ARRAY_PATH)
+        df_val_item  = np.load(VAL_ITEM_ARRAY_PATH)
+        df_val_rel  = np.load(VAL_REL_ARRAY_PATH)
+        return df_val_query, df_val_item, df_val_rel
+    else:
+        df_val, nanIndicColumns = getValData(useCached)
+        df_val_query = df_val[QUERY_FEATURE_COLS].values
+        df_val_item  = df_val[ITEM_FEATURE_COLS].values
+        df_val_rel = np.where(df_val['booking_bool'] == 0, df_val['click_bool'], df_val['booking_bool'])
+        np.save(arr= df_val_query, file=VAL_QUERY_ARRAY_PATH)
+        np.save(arr= df_val_item, file=VAL_ITEM_ARRAY_PATH)
+        np.save(arr= df_val_rel, file=VAL_REL_ARRAY_PATH)
+        return df_val_query, df_val_item, df_val_rel
+
+def createRawFiles():
+    from sklearn.model_selection import train_test_split
+    if not os.path.exists('training_set_VU_DM.csv'):
+        return FileNotFoundError(f"Cannot find required file: training_set_VU_DM.csv")
+    df = pd.read_csv('training_set_VU_DM.csv')
+    df_train, df_val = train_test_split(df, test_size=N_VAL_RECORDS)
+    df_train.to_csv(RAW_TRAIN_DATA_PATH)
+    df_val.to_csv(RAW_VAL_DATA_PATH)
 
 class TrainDataLoader():
     def __init__(self, batch_size, negFrac, crossFrac):
@@ -229,26 +279,37 @@ class TrainDataLoader():
         self.nPos = batch_size - self.nNeg - self.nCross
         self.queryNCat = len(QUERY_CAT_FEATURE_COLS)
         self.itemNCat = len(ITEM_CAT_FEATURE_COLS)
+        self.nRecords = self.train_item.shape[0]
+        self.nBatches = int(self.train_item.shape[0]/self.batch_size)
+        self._sampleIndices()
+
+    def _sampleIndices(self):
+        #pregenerate all sampled indices 
+        self.pos_ind_sample = np.random.choice(self.pos_ind, replace=True, size=(self.nRecords))
+        self.neg_ind_sample = np.random.choice(self.neg_ind, replace=True, size=(self.nRecords))
+        self.cross_ind1_sample = np.random.choice(self.all_ind, replace=True, size=(self.nRecords))
+        self.cross_ind2_sample = np.random.choice(self.all_ind, replace=True, size=(self.nRecords))
 
     def _samplePositive(self, n):
-        ind_sample = np.random.choice(self.pos_ind, size=(n))
+        ind_sample = self.pos_ind_sample[self.i*self.batch_size:self.i*self.batch_size+n]
         weights= self.train_rel[ind_sample]
         return ind_sample, weights
 
     def _sampleNegative(self, n):
         weights= np.zeros(shape=(n))-1
-        ind_sample = np.random.choice(self.neg_ind, size=(n))
+        ind_sample = self.neg_ind_sample[self.i*self.batch_size:self.i*self.batch_size+n]
         return ind_sample, weights
 
 
     def _crossSampleNegative(self, n):
-        ind1 =  np.random.choice(self.all_ind, size=(n))
-        ind2 =  np.random.choice(list(set(self.all_ind).difference(set(ind1))), size=(n)) #make sure we do not sample two indices that are similar
+        ind1 = self.cross_ind1_sample[self.i*self.batch_size:self.i*self.batch_size+n]
+        ind2 = self.cross_ind2_sample[self.i*self.batch_size:self.i*self.batch_size+n]
         weights= np.zeros(shape=(n))-1
         return ind1, ind2, weights
 
     def __iter__(self):
         self.i = 0
+        self._sampleIndices()
         return self
 
     def __next__(self):
@@ -258,7 +319,7 @@ class TrainDataLoader():
         return res
     
     def __len__(self):
-        return int(self.train_item.shape[0]/self.batch_size)
+        return self.nBatches
     
     def __getitem__(self, i):
         """
@@ -275,6 +336,7 @@ class TrainDataLoader():
         ind1Cross, ind2Cross, wCross = self._crossSampleNegative(self.nCross)
         querySampleInd = np.concatenate([indPos, indNeg, ind1Cross])       
         itemSampleInd = np.concatenate([indPos , indNeg , ind2Cross])
+        
         w = np.hstack([wPos,wNeg,wCross])
         querySample = self.train_query[querySampleInd]
         itemSample = self.train_item[itemSampleInd]
@@ -287,7 +349,18 @@ class TrainDataLoader():
         
         
 if __name__ == "__main__":
+    if not os.path.exists(RAW_TRAIN_DATA_PATH):
+        print(f"Splitting into train/val")
+        createRawFiles()
+
+    #Start sequence of data processing, all saved to disk
+    print(f"Creating train arrays")
     getTrainArrays(useCached=False)
+
+    print(f"Creating val arrays")
+    getValArrays(useCached=False)
+
+    print('Done')
         
 
 
