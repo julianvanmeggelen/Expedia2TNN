@@ -8,22 +8,25 @@ import torch
 
 N_VAL_RECORDS = 100000
 
-RAW_TRAIN_DATA_PATH = 'training_set_raw.csv'
-RAW_VAL_DATA_PATH = 'val_set_raw.csv'
+DATA_DIR = './data/'
+RAW_TRAIN_DATA_PATH = DATA_DIR+ 'training_set_raw.csv'
+RAW_VAL_DATA_PATH = DATA_DIR+'val_set_raw.csv'
 
-MAPS_TO_IND_PATH = 'maps_to_ind.pkl'
-MAPS_FROM_IND_PATH = 'maps_from_ind.pkl'
+MAPS_TO_IND_PATH = DATA_DIR+'maps_to_ind.pkl'
+MAPS_FROM_IND_PATH = DATA_DIR+'maps_from_ind.pkl'
 
-TRAIN_SET_PATH = 'train_set.pkl'
-VAL_SET_PATH = 'val_set.pkl'
+TRAIN_SET_PATH = DATA_DIR+'train_set.pkl'
+VAL_SET_PATH = DATA_DIR+'val_set.pkl'
 
-TRAIN_QUERY_ARRAY_PATH = 'train_query.npy'
-TRAIN_ITEM_ARRAY_PATH = 'train_item.npy'
-TRAIN_REL_ARRAY_PATH = 'train_rel.npy'
+TRAIN_INDEX_ARRAY_PATH = DATA_DIR+'train_index.npy'
+TRAIN_QUERY_ARRAY_PATH = DATA_DIR+'train_query.npy'
+TRAIN_ITEM_ARRAY_PATH = DATA_DIR+'train_item.npy'
+TRAIN_REL_ARRAY_PATH = DATA_DIR+'train_rel.npy'
 
-VAL_QUERY_ARRAY_PATH = 'val_query.npy'
-VAL_ITEM_ARRAY_PATH = 'val_item.npy'
-VAL_REL_ARRAY_PATH = 'val_rel.npy'
+VAL_INDEX_ARRAY_PATH = DATA_DIR+'val_index.npy'
+VAL_QUERY_ARRAY_PATH = DATA_DIR+'val_query.npy'
+VAL_ITEM_ARRAY_PATH = DATA_DIR+'val_item.npy'
+VAL_REL_ARRAY_PATH = DATA_DIR+'val_rel.npy'
 
 QUERY_NUM_FEATURE_COLS = [ #Cat columns first! 
     'visitor_hist_starrating'
@@ -134,13 +137,26 @@ def returnZero():
 def returnNone():
         return None
 
+def loadMaps():
+    with open(MAPS_TO_IND_PATH, 'rb') as handle:
+        maps_to_ind = pickle.load(handle)
+    with open(MAPS_FROM_IND_PATH, 'rb') as handle:
+        maps_from_ind = pickle.load(handle)
+    return {k: defaultdict(returnZero, v) for k,v in maps_to_ind.items()}, {k: defaultdict(returnNone, v) for k,v in maps_from_ind.items()}
+
+def saveMaps(maps_to_ind, maps_from_ind):
+    maps_to_ind_dict = {k: dict(v) for k,v in maps_to_ind.items()}
+    maps_from_ind_dict = {k: dict(v) for k,v in maps_from_ind.items()}
+
+    with open(MAPS_FROM_IND_PATH, 'wb') as handle:
+        pickle.dump(maps_from_ind_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(MAPS_TO_IND_PATH, 'wb') as handle:
+        pickle.dump(maps_to_ind_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)  
+
 def getMappings(df_train=None, train=True, useCached = True):
 
     if os.path.exists(MAPS_TO_IND_PATH) and useCached:
-        with open(MAPS_TO_IND_PATH, 'rb') as handle:
-            maps_to_ind = pickle.load(handle)
-        with open(MAPS_FROM_IND_PATH, 'rb') as handle:
-            maps_from_ind = pickle.load(handle)
+        maps_to_ind, maps_from_ind = loadMaps()
         return maps_to_ind, maps_from_ind
     
     if train:
@@ -153,14 +169,11 @@ def getMappings(df_train=None, train=True, useCached = True):
             maps_from_ind[col] = defaultdict(returnNone,map_from_ind)
             maps_to_ind[col] = defaultdict(returnZero,map_to_ind)
 
-        with open(MAPS_FROM_IND_PATH, 'wb') as handle:
-            pickle.dump(maps_from_ind, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(MAPS_TO_IND_PATH, 'wb') as handle:
-            pickle.dump(maps_to_ind, handle, protocol=pickle.HIGHEST_PROTOCOL)  
+        saveMaps(maps_to_ind, maps_from_ind)  
   
         return maps_to_ind, maps_from_ind
     else:
-        return Exception("Mapping cannot be loaded, first needs to be generated using train=True")
+        raise Exception("Mapping cannot be loaded, first needs to be generated using train=True")
 
 
 def addNaNIndicator(df_in, inplace=True):
@@ -202,13 +215,15 @@ def getTrainData(useCached = True):
             return df_train
     else:        
         df_train = pd.read_csv(RAW_TRAIN_DATA_PATH)
-        maps_to_ind, maps_from_ind = getMappings(df_train, train=True)
+        df_train['index_srch_id'] = df_train['srch_id']
+        df_train['index_prop_id'] = df_train['prop_id']
+        maps_to_ind, maps_from_ind = getMappings(df_train, useCached=useCached, train=True)
         df_train = applyMapping(df_train, maps_to_ind, inplace=True)
         df_train, nanIndicColumns = addNaNIndicator(df_train)
         #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
         with open(TRAIN_SET_PATH, 'wb') as handle:
             pickle.dump(df_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        return df_train, nanIndicColumns
+        return df_train
     
 def getValData(useCached = True):
     if os.path.exists(VAL_SET_PATH) and useCached:
@@ -218,58 +233,74 @@ def getValData(useCached = True):
             return df_val
     else:        
         df_val = pd.read_csv(RAW_VAL_DATA_PATH)
-        maps_to_ind, maps_from_ind = getMappings(df_val, train=False)
+        df_val['index_srch_id'] = df_val['srch_id']
+        df_val['index_prop_id'] = df_val['prop_id']
+        maps_to_ind, maps_from_ind = getMappings(df_val, useCached=True, train=False)
         df_val = applyMapping(df_val, maps_to_ind, inplace=True)
         df_val, nanIndicColumns = addNaNIndicator(df_val)
         #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
         with open(VAL_SET_PATH, 'wb') as handle:
             pickle.dump(df_val, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        return df_val, nanIndicColumns
+        return df_val
 
 def getTrainArrays(useCached =True):
     if os.path.exists(TRAIN_QUERY_ARRAY_PATH) and useCached:
         df_train_query = np.load(TRAIN_QUERY_ARRAY_PATH)
         df_train_item  = np.load(TRAIN_ITEM_ARRAY_PATH)
         df_train_rel  = np.load(TRAIN_REL_ARRAY_PATH)
-        return df_train_query, df_train_item, df_train_rel
+        df_train_index  = np.load(TRAIN_INDEX_ARRAY_PATH)
+        return df_train_query, df_train_item, df_train_rel, df_train_index
     else:
-        df_train, nanIndicColumns = getTrainData(useCached)
+        df_train = getTrainData(useCached)
+        df_train_index = df_train[['index_srch_id', 'index_prop_id']].values
         df_train_query = df_train[QUERY_FEATURE_COLS].values
         df_train_item  = df_train[ITEM_FEATURE_COLS].values
         df_train_rel = np.where(df_train['booking_bool'] == 0, df_train['click_bool'], df_train['booking_bool'])
         np.save(arr= df_train_query, file=TRAIN_QUERY_ARRAY_PATH)
         np.save(arr= df_train_item, file=TRAIN_ITEM_ARRAY_PATH)
         np.save(arr= df_train_rel, file=TRAIN_REL_ARRAY_PATH)
-        return df_train_query, df_train_item
+        np.save(arr= df_train_index, file=TRAIN_INDEX_ARRAY_PATH)
+        return df_train_query, df_train_item, df_train_rel, df_train_index
 
 def getValArrays(useCached =True):
     if os.path.exists(VAL_QUERY_ARRAY_PATH) and useCached:
         df_val_query = np.load(VAL_QUERY_ARRAY_PATH)
         df_val_item  = np.load(VAL_ITEM_ARRAY_PATH)
         df_val_rel  = np.load(VAL_REL_ARRAY_PATH)
-        return df_val_query, df_val_item, df_val_rel
+        df_val_index  = np.load(VAL_INDEX_ARRAY_PATH)
+        return df_val_query, df_val_item, df_val_rel, df_val_index
     else:
-        df_val, nanIndicColumns = getValData(useCached)
+        df_val = getValData(useCached)
+        df_val_index = df_val[['index_srch_id', 'index_prop_id']].values
         df_val_query = df_val[QUERY_FEATURE_COLS].values
         df_val_item  = df_val[ITEM_FEATURE_COLS].values
         df_val_rel = np.where(df_val['booking_bool'] == 0, df_val['click_bool'], df_val['booking_bool'])
         np.save(arr= df_val_query, file=VAL_QUERY_ARRAY_PATH)
         np.save(arr= df_val_item, file=VAL_ITEM_ARRAY_PATH)
         np.save(arr= df_val_rel, file=VAL_REL_ARRAY_PATH)
-        return df_val_query, df_val_item, df_val_rel
+        np.save(arr= df_val_index, file=VAL_INDEX_ARRAY_PATH)
+        return df_val_query, df_val_item, df_val_rel, df_val_index
 
 def createRawFiles():
+    #Split training set in training and val, keeping srch_id together
     from sklearn.model_selection import train_test_split
     if not os.path.exists('training_set_VU_DM.csv'):
         return FileNotFoundError(f"Cannot find required file: training_set_VU_DM.csv")
+    
     df = pd.read_csv('training_set_VU_DM.csv')
-    df_train, df_val = train_test_split(df, test_size=N_VAL_RECORDS)
+    all_srch_ids = df['srch_id'].unique()
+    n_srch_ids = len(all_srch_ids)
+    n_val_ids = int(N_VAL_RECORDS/len(df)*n_srch_ids)
+    print(f"Creating train set of {n_srch_ids-n_val_ids} ids and val set with {n_val_ids} ids")
+    train_srch_ids, val_srch_ids = train_test_split(all_srch_ids, test_size=n_val_ids)
+    df_train = df[df['srch_id'].isin(train_srch_ids)]
+    df_val = df[df['srch_id'].isin(val_srch_ids)]
     df_train.to_csv(RAW_TRAIN_DATA_PATH)
     df_val.to_csv(RAW_VAL_DATA_PATH)
 
 class TrainDataLoader():
     def __init__(self, batch_size, negFrac, crossFrac):
-        self.train_query, self.train_item, self.train_rel = getTrainArrays(useCached=True)
+        self.train_query, self.train_item, self.train_rel, self.train_index = getTrainArrays(useCached=True)
         self.batch_size = batch_size
         self.pos_ind = np.argwhere(self.train_rel>0)[:,0]
         self.neg_ind = np.argwhere(self.train_rel==0)[:,0]
@@ -347,11 +378,69 @@ class TrainDataLoader():
         w.requires_grad_(False)
         return  X_query_cat, X_query_num, X_item_cat, X_item_num , w
         
-        
+class ValDataLoader(): #simply return batches, but one srch_id may not be spread over batches
+    def __init__(self, batch_size, mode='val'):
+        if mode=='val':
+            self.val_query, self.val_item, self.val_rel, self.val_index = getValArrays(useCached=True)
+        self.batch_size = batch_size
+        self.queryNCat = len(QUERY_CAT_FEATURE_COLS)
+        self.itemNCat = len(ITEM_CAT_FEATURE_COLS)
+        self.nRecords = self.val_item.shape[0]
+        self.batches = self._getBatches()
+        self.nBatches = len(self.batches)
+
+    def _getBatches(self):
+        batches = []
+        currentBatch = []
+        i = 0
+        print(self.nRecords, self.val_index.shape, self.val_item.shape)
+        while i <= self.nRecords:
+            currentBatch.append(i)
+            if i == self.nRecords-1:
+                batches.append(currentBatch)
+                break
+            if (len(currentBatch) > self.batch_size and not self.val_index[i,0] == self.val_index[i+1,0]):
+                batches.append(currentBatch)
+                currentBatch = []
+            i+=1
+        return batches 
+
+    def __iter__(self):
+        self.i = 0
+        return self
+
+    def __next__(self):
+        if self.i >= self.__len__(): raise StopIteration
+        res = self.__getitem__(self.i)
+        self.i += 1
+        return res
+    
+    def __len__(self):
+        return self.nBatches
+    
+    def __getitem__(self, i):
+        """
+        returns:
+            query_cat: torch.Tensor, (batch_size, nCatQueryFeatures)
+            query_num: torch.Tensor, (batch_size, nNumQueryFeatures)
+            item_cat: torch.Tensor,(batch_size, nCatItemFeatures)
+            item_num: torch.Tensor, (batch_size, nNumItemFeatures)
+            w: torch.Tensor, (batch_size, 1)
+                -1 if unrelated 1 if clicked, 5 if booked
+            index: np.ndArray, array containing srch_id, prop_id index for the batch
+        """
+       
+        ind = self.batches[i]
+        X_query_cat, X_query_num, X_item_cat, X_item_num = self.val_query[ind,:self.queryNCat], self.val_query[ind,self.queryNCat:], self.val_item[ind,:self.itemNCat], self.val_item[ind,self.itemNCat:]
+        X_query_cat, X_query_num, X_item_cat, X_item_num = torch.Tensor(X_query_cat).long(), torch.Tensor(X_query_num).float(), torch.Tensor(X_item_cat).long(), torch.Tensor(X_item_num).float()
+        w, index = torch.Tensor(self.val_rel[ind]).float(), self.val_index[ind]
+        w.requires_grad_(False)
+        return  X_query_cat, X_query_num, X_item_cat, X_item_num , w, index
+            
 if __name__ == "__main__":
     if not os.path.exists(RAW_TRAIN_DATA_PATH):
         print(f"Splitting into train/val")
-        createRawFiles()
+        createRawFiles() 
 
     #Start sequence of data processing, all saved to disk
     print(f"Creating train arrays")

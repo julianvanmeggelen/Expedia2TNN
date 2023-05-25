@@ -27,6 +27,8 @@ itemTowerCfg.activation = nn.ReLU()
 
 modelCfg = mlc.ConfigDict()
 modelCfg.embedding_dim = 16
+modelCfg.itemTowerCfg = itemTowerCfg
+modelCfg.queryTowerCfg = queryTowerCfg
 
 # Training config
 trainCfg = mlc.ConfigDict()

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import modelCfg as defaultModelCfg
 
 class Tower(nn.Module):
     def __init__(self, embedding_dim: list, embedding_dict_size:list, numeric_dim:list, shared_hidden_dim:list, output_embedding_dim, activation=nn.ReLU):
@@ -61,9 +62,10 @@ class RecModel(nn.Module):
         i = self.item_tower(X_item_cat, X_item_num)
         return q, i
 
-def getDefaultModel():
-    from config import queryTowerCfg, itemTowerCfg, modelCfg
-    return RecModel(modelCfg.embedding_dim, query_tower_args=dict(queryTowerCfg), item_tower_args = dict(itemTowerCfg))
+def getDefaultModel(modelCfg = None):
+    if modelCfg is None:
+        modelCfg = defaultModelCfg
+    return RecModel(modelCfg.embedding_dim, query_tower_args=dict(modelCfg.queryTowerCfg), item_tower_args = dict(modelCfg.itemTowerCfg))
 
 def weightedCoSim(w, q, i):
     """
