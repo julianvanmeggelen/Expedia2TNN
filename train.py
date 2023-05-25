@@ -13,7 +13,12 @@ from datetime import datetime
 import argparse
 import pickle
 from config import modelCfg as defaultModelCfg
+import numpy as np
 
+def get_trainable_params(model):
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters])
+    return params
 
 def train(checkpoint_dir:str=None):
     logDirName = f"{datetime.now()}"
@@ -37,6 +42,8 @@ def train(checkpoint_dir:str=None):
     with open(f"{logPath}/modelCfg.pkl", 'wb') as file: #save config used to logdir
         pickle.dump(modelCfg, file)
         print("Saved modelCfg to log")
+    
+    print(f"Number of trainable model parameters: {get_trainable_params(mod)}")
 
     dl = TrainDataLoader(batch_size=tCfg.batch_size, negFrac=tCfg.negFrac, crossFrac=tCfg.crossFrac)
     vdl = ValDataLoader(batch_size=10000)

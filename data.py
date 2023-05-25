@@ -393,7 +393,6 @@ class ValDataLoader(): #simply return batches, but one srch_id may not be spread
         batches = []
         currentBatch = []
         i = 0
-        print(self.nRecords, self.val_index.shape, self.val_item.shape)
         while i <= self.nRecords:
             currentBatch.append(i)
             if i == self.nRecords-1:
