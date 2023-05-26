@@ -1,7 +1,7 @@
 import ml_collections as mlc
 import torch.nn as nn
 from data import QUERY_CAT_FEATURE_COLS, QUERY_NUM_FEATURE_COLS, ITEM_CAT_FEATURE_COLS, ITEM_NUM_FEATURE_COLS, ITEM_NUM_INDICATOR_COLS, QUERY_NUM_INDICATOR_COLS, getMappings
-defaultCatEmbeddingDim = 16
+defaultCatEmbeddingDim = 4
 
 
 maps_to_ind, _ = getMappings(train=True)
@@ -13,7 +13,7 @@ queryTowerCfg.embedding_dim = [defaultCatEmbeddingDim] * len(QUERY_CAT_FEATURE_C
 queryTowerCfg.embedding_dict_size = [len(maps_to_ind[k])+1 for k in QUERY_CAT_FEATURE_COLS if k in maps_to_ind.keys()]
 
 queryTowerCfg.numeric_dim = [len(QUERY_NUM_FEATURE_COLS)+len(QUERY_NUM_INDICATOR_COLS), 64]
-queryTowerCfg.shared_hidden_dim = [256, 128]
+queryTowerCfg.shared_hidden_dim = [128, 64]
 queryTowerCfg.activation = nn.ReLU()
 queryTowerCfg.dropout =0.3 
 
@@ -23,14 +23,14 @@ itemTowerCfg.embedding_dim = [defaultCatEmbeddingDim] * len(ITEM_CAT_FEATURE_COL
 #itemTowerCfg.embedding_dict_size = [len(v)+1 for k,v in maps_to_ind.items() if k in ITEM_CAT_FEATURE_COLS]
 itemTowerCfg.embedding_dict_size = [len(maps_to_ind[k])+1 for k in ITEM_CAT_FEATURE_COLS if k in maps_to_ind.keys()]
 
-itemTowerCfg.numeric_dim = [len(ITEM_NUM_FEATURE_COLS)+len(ITEM_NUM_INDICATOR_COLS), 64, 128]
-itemTowerCfg.shared_hidden_dim = [256, 128]
+itemTowerCfg.numeric_dim = [len(ITEM_NUM_FEATURE_COLS)+len(ITEM_NUM_INDICATOR_COLS), 64]
+itemTowerCfg.shared_hidden_dim = [128, 64]
 itemTowerCfg.activation = nn.ReLU()
 itemTowerCfg.dropout = 0.3
 
 
 modelCfg = mlc.ConfigDict()
-modelCfg.embedding_dim = 16
+modelCfg.embedding_dim = 8
 modelCfg.itemTowerCfg = itemTowerCfg
 modelCfg.queryTowerCfg = queryTowerCfg
 
@@ -38,7 +38,7 @@ modelCfg.queryTowerCfg = queryTowerCfg
 trainCfg = mlc.ConfigDict() 
 trainCfg.n_epoch = 100
 trainCfg.batch_size = 196608*2
-trainCfg.lr = 0.003
+trainCfg.lr = 0.006
 trainCfg.negFrac = 0.3
 trainCfg.crossFrac = 0.2
 

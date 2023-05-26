@@ -452,6 +452,7 @@ class ValDataLoader(): #simply return batches, but one srch_id may not be spread
         if mode=='val':
             self.val_query, self.val_item, self.val_rel, self.val_index = getValArrays(useCached=True)
             self.val_query, self.val_item, self.val_rel = torch.Tensor(self.val_query).float().to(device), torch.Tensor(self.val_item).float().to(device), torch.Tensor(self.val_rel).float().to(device)
+            #self.val_rel = torch.where(self.val_rel >0, self.val_rel, -1)
         if mode=='test':
             self.val_query, self.val_item, self.val_rel, self.val_index = getTestArrays(useCached=True)
             self.val_query, self.val_item = torch.Tensor(self.val_query).float().to(device), torch.Tensor(self.val_item).float().to(device)

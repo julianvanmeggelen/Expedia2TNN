@@ -39,7 +39,7 @@ class Tower(nn.Module):
         x = torch.cat(embeddings + [num_out], dim=1)
 
         if self.dropout:
-            x = nn.Dropout(p=self.dropout)
+            x = nn.Dropout(p=self.dropout)(x)
 
         query_embedding_out = x
         for i, l in enumerate(self.shared_ffw):

@@ -49,6 +49,7 @@ def valLoss(dataLoader, model, verbose=False):
     model.eval()
     losses = 0.0
     for  b, (X_query_cat, X_query_num, X_item_cat, X_item_num , w, _) in tqdm(enumerate(dataLoader), total=dataLoader.nBatches, disable=(not verbose)):
+        w =  torch.where(w >0, w, -1)
         e_q, e_i = model(X_query_cat, X_query_num, X_item_cat, X_item_num)
         loss = weightedCoSim(w,e_q,e_i)
         losses += loss.item()

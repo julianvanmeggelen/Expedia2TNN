@@ -25,9 +25,6 @@ def get_trainable_params(model):
     return params
 
 def train(checkpoint_dir:str=None):
-    logDirName = f"{datetime.now()}"
-    logPath ="./training_log/"+logDirName
-    os.mkdir(logPath)
 
     if checkpoint_dir: #load checkpoint
         print("Loading checkpoint")
@@ -42,6 +39,10 @@ def train(checkpoint_dir:str=None):
         modelCfg = defaultModelCfg
         mod = getDefaultModel(modelCfg=modelCfg)
         print("Loaded  model with defaultcfg")
+
+    logDirName = f"{datetime.now()}"
+    logPath ="./training_log/"+logDirName
+    os.mkdir(logPath)
 
     with open(f"{logPath}/modelCfg.pkl", 'wb') as file: #save config used to logdir
         pickle.dump(modelCfg, file)
@@ -64,6 +65,7 @@ def train(checkpoint_dir:str=None):
 
     nBatches = len(dl)
     epochLoss = 0.0
+    bestValDcg = 0.0
     print(f"Starting training for {tCfg.n_epoch} epochs with {nBatches} batches.")
     for epoch in range(tCfg.n_epoch):
         for  b, (X_query_cat, X_query_num, X_item_cat, X_item_num , w) in tqdm(enumerate(dl), total=dl.nBatches):
@@ -79,10 +81,13 @@ def train(checkpoint_dir:str=None):
         val_loss = valLoss(vdl,mod)
         val_dcg = valDcg(model=mod, dataLoader= vdl)
         writer.add_scalar('dcg/val/epoch', val_dcg, epoch)
-        writer.add_scalar('dcg/val/loss', val_loss, epoch)
+        writer.add_scalar('Loss/val/epoch', val_loss, epoch)
         print(f"Train loss: {epochLoss/nBatches}, val loss: {val_loss} val DCG: {val_dcg}")
         epochLoss = 0.0
-        torch.save(mod.state_dict(),logPath+f"/state_epoch_{epoch}")
+        if val_dcg > bestValDcg:
+            print(f"New best DCG@5 on val set ({val_dcg}>{bestValDcg}), saving checkpoint")
+            torch.save(mod.state_dict(),logPath+f"/state_cp.pt")
+            bestValDcg = val_dcg
 
 
 if __name__ == "__main__":
