@@ -523,7 +523,7 @@ if __name__ == "__main__":
     getValArrays(useCached=False)
 
     print(f"Creating test arrays")
-    getValArrays(useCached=False)
+    getTestArrays(useCached=False)
 
     print('Done')
         
