@@ -1,7 +1,7 @@
 import ml_collections as mlc
 from model import getDefaultModel, weightedCoSim
 from data import TrainDataLoader, ValDataLoader
-from evaluate import valDcg
+from evaluate import valDcg, randomOrderingBenchmark, perfectOrderingBenchmark
 from config import trainCfg as tCfg
 import torch.optim as opt
 from tqdm import tqdm
@@ -47,6 +47,12 @@ def train(checkpoint_dir:str=None):
 
     dl = TrainDataLoader(batch_size=tCfg.batch_size, negFrac=tCfg.negFrac, crossFrac=tCfg.crossFrac)
     vdl = ValDataLoader(batch_size=10000)
+    random_dcg = randomOrderingBenchmark(dataLoader=vdl)
+    print(f"Random ordering bechmark:{random_dcg}")
+    perfect_dcg = perfectOrderingBenchmark(dataLoader=vdl)
+    print(f"Perfect ordering bechmark:{perfect_dcg}")
+    untrained_dcg = valDcg(dataLoader=vdl, model=mod)
+    print(f"Untrained model DCG: {untrained_dcg}")
 
     optimizer = opt.Adam(params=mod.parameters(), lr = tCfg.lr)
 

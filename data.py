@@ -4,19 +4,23 @@ import os
 from collections import defaultdict
 import pickle 
 import torch
+from tqdm import tqdm
+tqdm.pandas()
 
 
-N_VAL_RECORDS = 100000
+N_VAL_RECORDS = 500000
 
 DATA_DIR = './data/'
 RAW_TRAIN_DATA_PATH = DATA_DIR+ 'training_set_raw.csv'
 RAW_VAL_DATA_PATH = DATA_DIR+'val_set_raw.csv'
+RAW_TEST_DATA_PATH = 'test_set_VU_DM.csv'
 
 MAPS_TO_IND_PATH = DATA_DIR+'maps_to_ind.pkl'
 MAPS_FROM_IND_PATH = DATA_DIR+'maps_from_ind.pkl'
 
 TRAIN_SET_PATH = DATA_DIR+'train_set.pkl'
 VAL_SET_PATH = DATA_DIR+'val_set.pkl'
+TEST_SET_PATH = DATA_DIR + 'test_set.pkl'
 
 TRAIN_INDEX_ARRAY_PATH = DATA_DIR+'train_index.npy'
 TRAIN_QUERY_ARRAY_PATH = DATA_DIR+'train_query.npy'
@@ -27,6 +31,11 @@ VAL_INDEX_ARRAY_PATH = DATA_DIR+'val_index.npy'
 VAL_QUERY_ARRAY_PATH = DATA_DIR+'val_query.npy'
 VAL_ITEM_ARRAY_PATH = DATA_DIR+'val_item.npy'
 VAL_REL_ARRAY_PATH = DATA_DIR+'val_rel.npy'
+
+TEST_INDEX_ARRAY_PATH = DATA_DIR+'test_index.npy'
+TEST_QUERY_ARRAY_PATH = DATA_DIR+'test_query.npy'
+TEST_ITEM_ARRAY_PATH = DATA_DIR+'test_item.npy'
+TEST_REL_ARRAY_PATH = DATA_DIR+'test_rel.npy'
 
 QUERY_NUM_FEATURE_COLS = [ #Cat columns first! 
     'visitor_hist_starrating'
@@ -86,6 +95,7 @@ ITEM_NUM_FEATURE_COLS = [
     ,'comp8_inv'
     ,'comp8_rate_percent_diff'
     ,'prop_log_historical_price'
+    #,'comp1_rate'
 ]
 
 ITEM_NUM_INDICATOR_COLS = [
@@ -122,14 +132,13 @@ ITEM_CAT_FEATURE_COLS = [
     ,'prop_starrating'
     ,'prop_brand_bool'
     ,'promotion_flag'
-    ,'comp1_rate'
-    ,'comp1_inv'
+    #,'comp1_inv'
 ]
 
 ITEM_FEATURE_COLS = ITEM_CAT_FEATURE_COLS + ITEM_NUM_FEATURE_COLS + ITEM_NUM_INDICATOR_COLS
 
-
 CAT_FEATURE_COLS = QUERY_CAT_FEATURE_COLS + ITEM_CAT_FEATURE_COLS
+NUM_FEATURE_COLS = QUERY_NUM_FEATURE_COLS + ITEM_NUM_FEATURE_COLS
 
 
 def returnZero():
@@ -163,7 +172,7 @@ def getMappings(df_train=None, train=True, useCached = True):
         maps_to_ind = {}
         maps_from_ind = {}
         for col in CAT_FEATURE_COLS:
-            unique = np.sort(df_train[col].unique().astype('int'))
+            unique = np.sort(df_train.loc[~df_train[col].isna(), col].astype('int').unique())
             map_from_ind = {i+1:_ for i,_ in enumerate(unique)} #0 is the default for unknown id's
             map_to_ind = {_:i+1 for i,_ in enumerate(unique)}
             maps_from_ind[col] = defaultdict(returnNone,map_from_ind)
@@ -175,6 +184,17 @@ def getMappings(df_train=None, train=True, useCached = True):
     else:
         raise Exception("Mapping cannot be loaded, first needs to be generated using train=True")
 
+
+REPLACE_DICT = {'comp1_rate':{-9223372036854775808:0}}
+def valueReplace(df_in, inplace=True):
+    if not inplace:
+        df = df_in.copy()
+    else:
+        df = df_in
+    for col, replacements in REPLACE_DICT.items():
+        for to_replace, value in replacements.items():
+            df = df.replace(to_replace=to_replace, value=value)
+    return df
 
 def addNaNIndicator(df_in, inplace=True):
     if not inplace:
@@ -204,7 +224,10 @@ def applyMapping(df_in, mappings, inplace=True):
     else:
         df = df_in
     for col, mapping in mappings.items():
-        df[col] = df[col].apply(lambda val: mapping[val])
+        if col == 'comp1_rate':
+            print(mapping)
+        print(f"Applying mapping of length {len(mapping)} for {col}")
+        df[col] = df[col].progress_apply(lambda val: mapping[val])
     return df
         
 def getTrainData(useCached = True):
@@ -243,6 +266,28 @@ def getValData(useCached = True):
             pickle.dump(df_val, handle, protocol=pickle.HIGHEST_PROTOCOL)
         return df_val
 
+def getTestData(useCached = True):
+    if os.path.exists(TEST_SET_PATH) and useCached:
+        with open(TEST_SET_PATH, 'rb') as handle:
+            df_test = pickle.load(handle)
+            print("Loaded val_data from disk")
+            return df_test
+    else:        
+        print('Loading test data')
+        df_test = pd.read_csv(RAW_TEST_DATA_PATH)
+        print('Loaded test data')
+        df_test['index_srch_id'] = df_test['srch_id']
+        df_test['index_prop_id'] = df_test['prop_id']
+        maps_to_ind, maps_from_ind = getMappings(df_test, useCached=True, train=False)
+        df_test = applyMapping(df_test, maps_to_ind, inplace=True)
+        print('Applied mapping')
+        df_test, nanIndicColumns = addNaNIndicator(df_test)
+        #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
+        with open(TEST_SET_PATH, 'wb') as handle:
+            pickle.dump(df_test, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Saved to disk")
+        return df_test
+    
 def getTrainArrays(useCached =True):
     if os.path.exists(TRAIN_QUERY_ARRAY_PATH) and useCached:
         df_train_query = np.load(TRAIN_QUERY_ARRAY_PATH)
@@ -280,7 +325,27 @@ def getValArrays(useCached =True):
         np.save(arr= df_val_rel, file=VAL_REL_ARRAY_PATH)
         np.save(arr= df_val_index, file=VAL_INDEX_ARRAY_PATH)
         return df_val_query, df_val_item, df_val_rel, df_val_index
-
+    
+def getTestArrays(useCached =True):
+    if os.path.exists(TEST_QUERY_ARRAY_PATH) and useCached:
+        df_test_query = np.load(TEST_QUERY_ARRAY_PATH)
+        df_test_item  = np.load(TEST_ITEM_ARRAY_PATH)
+        df_test_rel  = np.load(TEST_REL_ARRAY_PATH)
+        df_test_rel = None
+        df_test_index  = np.load(TEST_INDEX_ARRAY_PATH)
+        return df_test_query, df_test_item, df_test_rel, df_test_index
+    else:
+        df_test = getTestData(useCached)
+        df_test_index = df_test[['index_srch_id', 'index_prop_id']].values
+        df_test_query = df_test[QUERY_FEATURE_COLS].values
+        df_test_item  = df_test[ITEM_FEATURE_COLS].values
+        df_test_rel = None
+        np.save(arr= df_test_query, file=TEST_QUERY_ARRAY_PATH)
+        np.save(arr= df_test_item, file=TEST_ITEM_ARRAY_PATH)
+        np.save(arr= df_test_rel, file=TEST_REL_ARRAY_PATH)
+        np.save(arr= df_test_index, file=TEST_INDEX_ARRAY_PATH)
+        return df_test_query, df_test_item, df_test_rel, df_test_index
+    
 def createRawFiles():
     #Split training set in training and val, keeping srch_id together
     from sklearn.model_selection import train_test_split
@@ -377,11 +442,15 @@ class TrainDataLoader():
         w = torch.Tensor(w).float()
         w.requires_grad_(False)
         return  X_query_cat, X_query_num, X_item_cat, X_item_num , w
-        
+         
 class ValDataLoader(): #simply return batches, but one srch_id may not be spread over batches
     def __init__(self, batch_size, mode='val'):
+        self.mode=mode
         if mode=='val':
             self.val_query, self.val_item, self.val_rel, self.val_index = getValArrays(useCached=True)
+        if mode=='test':
+            self.val_query, self.val_item, self.val_rel, self.val_index = getTestArrays(useCached=True)
+
         self.batch_size = batch_size
         self.queryNCat = len(QUERY_CAT_FEATURE_COLS)
         self.itemNCat = len(ITEM_CAT_FEATURE_COLS)
@@ -426,14 +495,19 @@ class ValDataLoader(): #simply return batches, but one srch_id may not be spread
             item_num: torch.Tensor, (batch_size, nNumItemFeatures)
             w: torch.Tensor, (batch_size, 1)
                 -1 if unrelated 1 if clicked, 5 if booked
+                None if in test mode
             index: np.ndArray, array containing srch_id, prop_id index for the batch
         """
        
         ind = self.batches[i]
         X_query_cat, X_query_num, X_item_cat, X_item_num = self.val_query[ind,:self.queryNCat], self.val_query[ind,self.queryNCat:], self.val_item[ind,:self.itemNCat], self.val_item[ind,self.itemNCat:]
         X_query_cat, X_query_num, X_item_cat, X_item_num = torch.Tensor(X_query_cat).long(), torch.Tensor(X_query_num).float(), torch.Tensor(X_item_cat).long(), torch.Tensor(X_item_num).float()
-        w, index = torch.Tensor(self.val_rel[ind]).float(), self.val_index[ind]
-        w.requires_grad_(False)
+        index = self.val_index[ind]
+        if self.mode=='train':
+            w = torch.Tensor(self.val_rel[ind]).float()
+            w.requires_grad_(False)
+        elif self.mode=='test':
+            w = None
         return  X_query_cat, X_query_num, X_item_cat, X_item_num , w, index
             
 if __name__ == "__main__":
@@ -446,6 +520,9 @@ if __name__ == "__main__":
     getTrainArrays(useCached=False)
 
     print(f"Creating val arrays")
+    getValArrays(useCached=False)
+
+    print(f"Creating test arrays")
     getValArrays(useCached=False)
 
     print('Done')
