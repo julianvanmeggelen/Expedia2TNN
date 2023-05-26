@@ -47,12 +47,12 @@ def DCG(resultsDf, p=5, inplace=False, sim_column = 'sim'):
 def valLoss(dataLoader, model, verbose=False):
     model.eval()
     losses = 0.0
-    for  b, (X_query_cat, X_query_num, X_item_cat, X_item_num , w) in tqdm(enumerate(dl), total=dl.nBatches, hide=(not verbose)):
-        e_q, e_i = mod(X_query_cat, X_query_num, X_item_cat, X_item_num)
+    for  b, (X_query_cat, X_query_num, X_item_cat, X_item_num , w, _) in tqdm(enumerate(dataLoader), total=dataLoader.nBatches, disable=(not verbose)):
+        e_q, e_i = model(X_query_cat, X_query_num, X_item_cat, X_item_num)
         loss = weightedCoSim(w,e_q,e_i)
         losses += loss.item()
     model.train()
-    return losses/dl.nRecords
+    return losses/dataLoader.nRecords
 
 def valDcg(dataLoader, model, sim_column = 'sim'):
     model.eval()

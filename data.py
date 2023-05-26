@@ -52,7 +52,7 @@ QUERY_NUM_INDICATOR_COLS = [
 ]
 
 QUERY_CAT_FEATURE_COLS = [ #Cat columns first! 
-    'srch_id'
+    #'srch_id'
     ,'site_id'
     ,'visitor_location_country_id'
     ,'srch_length_of_stay'
@@ -330,7 +330,6 @@ def getTestArrays(useCached =True):
     if os.path.exists(TEST_QUERY_ARRAY_PATH) and useCached:
         df_test_query = np.load(TEST_QUERY_ARRAY_PATH)
         df_test_item  = np.load(TEST_ITEM_ARRAY_PATH)
-        df_test_rel  = np.load(TEST_REL_ARRAY_PATH)
         df_test_rel = None
         df_test_index  = np.load(TEST_INDEX_ARRAY_PATH)
         return df_test_query, df_test_item, df_test_rel, df_test_index
@@ -342,7 +341,6 @@ def getTestArrays(useCached =True):
         df_test_rel = None
         np.save(arr= df_test_query, file=TEST_QUERY_ARRAY_PATH)
         np.save(arr= df_test_item, file=TEST_ITEM_ARRAY_PATH)
-        np.save(arr= df_test_rel, file=TEST_REL_ARRAY_PATH)
         np.save(arr= df_test_index, file=TEST_INDEX_ARRAY_PATH)
         return df_test_query, df_test_item, df_test_rel, df_test_index
     
