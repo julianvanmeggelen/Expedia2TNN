@@ -24,7 +24,7 @@ def get_trainable_params(model):
     params = sum([np.prod(p.size()) for p in model_parameters])
     return params
 
-def train(checkpoint_dir:str=None):
+def train(checkpoint_dir:str=None, epochs=None):
 
     if checkpoint_dir: #load checkpoint
         print("Loading checkpoint")
@@ -65,7 +65,9 @@ def train(checkpoint_dir:str=None):
 
     nBatches = len(dl)
     epochLoss = 0.0
-    bestValDcg = 0.0
+    bestValDcg = untrained_dcg
+    if epochs:
+        tCfg.n_epoch = epochs
     print(f"Starting training for {tCfg.n_epoch} epochs with {nBatches} batches.")
     for epoch in range(tCfg.n_epoch):
         for  b, (X_query_cat, X_query_num, X_item_cat, X_item_num , w) in tqdm(enumerate(dl), total=dl.nBatches):
@@ -95,7 +97,10 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint_dir', type=str,
                         help='Checkpoint directory')
 
+    parser.add_argument('--epochs', type=str,
+                        help='Checkpoint directory')
+
     args = parser.parse_args()
-    train(checkpoint_dir=args.checkpoint_dir)
+    train(checkpoint_dir=args.checkpoint_dir, epochs=int(args.epochs))
     
 
