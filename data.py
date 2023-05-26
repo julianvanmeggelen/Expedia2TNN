@@ -364,7 +364,8 @@ def createRawFiles():
     df_val.to_csv(RAW_VAL_DATA_PATH)
 
 class TrainDataLoader():
-    def __init__(self, batch_size, negFrac, crossFrac):
+    def __init__(self, batch_size, negFrac, crossFrac, device='cpu'):
+        self.device=device
         self.train_query, self.train_item, self.train_rel, self.train_index = getTrainArrays(useCached=True)
         self.batch_size = batch_size
         self.pos_ind = np.argwhere(self.train_rel>0)[:,0]
@@ -377,6 +378,7 @@ class TrainDataLoader():
         self.itemNCat = len(ITEM_CAT_FEATURE_COLS)
         self.nRecords = self.train_item.shape[0]
         self.nBatches = int(self.train_item.shape[0]/self.batch_size)
+        self.train_query, self.train_item, self.train_rel = torch.Tensor(self.train_query).float().to(device), torch.Tensor(self.train_item).float().to(device), torch.Tensor(self.train_rel).float().to(device)
         self._sampleIndices()
 
     def _sampleIndices(self):
@@ -394,14 +396,14 @@ class TrainDataLoader():
     def _sampleNegative(self, n):
         weights= np.zeros(shape=(n))-1
         ind_sample = self.neg_ind_sample[self.i*self.batch_size:self.i*self.batch_size+n]
-        return ind_sample, weights
+        return ind_sample, torch.Tensor(weights).float().to(self.device)
 
 
     def _crossSampleNegative(self, n):
         ind1 = self.cross_ind1_sample[self.i*self.batch_size:self.i*self.batch_size+n]
         ind2 = self.cross_ind2_sample[self.i*self.batch_size:self.i*self.batch_size+n]
         weights= np.zeros(shape=(n))-1
-        return ind1, ind2, weights
+        return ind1, ind2, torch.Tensor(weights).float().to(self.device)
 
     def __iter__(self):
         self.i = 0
@@ -433,23 +435,28 @@ class TrainDataLoader():
         querySampleInd = np.concatenate([indPos, indNeg, ind1Cross])       
         itemSampleInd = np.concatenate([indPos , indNeg , ind2Cross])
         
-        w = np.hstack([wPos,wNeg,wCross])
+        w = torch.hstack([wPos,wNeg,wCross])
         querySample = self.train_query[querySampleInd]
         itemSample = self.train_item[itemSampleInd]
 
-        X_query_cat, X_query_num, X_item_cat, X_item_num = querySample[:,:self.queryNCat], querySample[:,self.queryNCat:], itemSample[:,:self.itemNCat], itemSample[:,self.itemNCat:]
-        X_query_cat, X_query_num, X_item_cat, X_item_num = torch.Tensor(X_query_cat).long(), torch.Tensor(X_query_num).float(), torch.Tensor(X_item_cat).long(), torch.Tensor(X_item_num).float()
-        w = torch.Tensor(w).float()
+        X_query_cat, X_query_num, X_item_cat, X_item_num = querySample[:,:self.queryNCat].long(), querySample[:,self.queryNCat:], itemSample[:,:self.itemNCat].long(), itemSample[:,self.itemNCat:]
+        #X_query_cat, X_query_num, X_item_cat, X_item_num = torch.Tensor(X_query_cat).long(), torch.Tensor(X_query_num).float(), torch.Tensor(X_item_cat).long(), torch.Tensor(X_item_num).float()
+        #w = torch.Tensor(w).float()
         w.requires_grad_(False)
         return  X_query_cat, X_query_num, X_item_cat, X_item_num , w
          
 class ValDataLoader(): #simply return batches, but one srch_id may not be spread over batches
-    def __init__(self, batch_size, mode='val'):
+    def __init__(self, batch_size, mode='val', device='cpu'):
         self.mode=mode
+        self.device=device
+
         if mode=='val':
             self.val_query, self.val_item, self.val_rel, self.val_index = getValArrays(useCached=True)
+            self.val_query, self.val_item, self.val_rel = torch.Tensor(self.val_query).float().to(device), torch.Tensor(self.val_item).float().to(device), torch.Tensor(self.val_rel).float().to(device)
         if mode=='test':
             self.val_query, self.val_item, self.val_rel, self.val_index = getTestArrays(useCached=True)
+            self.val_query, self.val_item = torch.Tensor(self.val_query).float().to(device), torch.Tensor(self.val_item).float().to(device)
+
 
         self.batch_size = batch_size
         self.queryNCat = len(QUERY_CAT_FEATURE_COLS)
@@ -500,11 +507,11 @@ class ValDataLoader(): #simply return batches, but one srch_id may not be spread
         """
        
         ind = self.batches[i]
-        X_query_cat, X_query_num, X_item_cat, X_item_num = self.val_query[ind,:self.queryNCat], self.val_query[ind,self.queryNCat:], self.val_item[ind,:self.itemNCat], self.val_item[ind,self.itemNCat:]
-        X_query_cat, X_query_num, X_item_cat, X_item_num = torch.Tensor(X_query_cat).long(), torch.Tensor(X_query_num).float(), torch.Tensor(X_item_cat).long(), torch.Tensor(X_item_num).float()
+        X_query_cat, X_query_num, X_item_cat, X_item_num = self.val_query[ind,:self.queryNCat].long(), self.val_query[ind,self.queryNCat:], self.val_item[ind,:self.itemNCat].long(), self.val_item[ind,self.itemNCat:]
+        #X_query_cat, X_query_num, X_item_cat, X_item_num = torch.Tensor(X_query_cat).long(), torch.Tensor(X_query_num).float(), torch.Tensor(X_item_cat).long(), torch.Tensor(X_item_num).float()
         index = self.val_index[ind]
-        if self.mode=='train':
-            w = torch.Tensor(self.val_rel[ind]).float()
+        if self.mode=='val':
+            w = self.val_rel[ind]
             w.requires_grad_(False)
         elif self.mode=='test':
             w = None

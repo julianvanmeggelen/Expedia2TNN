@@ -25,8 +25,8 @@ def valPrediction(model, valDataLoader, verbose=False):
     for X_query_cat, X_query_num, X_item_cat, X_item_num , w, index in tqdm(valDataLoader, disable= (not verbose)):
         similarity = batchPredictCosineSimilarity(X_query_cat, X_query_num, X_item_cat, X_item_num , model)
         batchConvertedIndex = convertIndex(index)
-        res.loc[batchConvertedIndex,'sim'] = similarity.detach().numpy()
-        res.loc[batchConvertedIndex,'weight'] = w.detach().numpy()
+        res.loc[batchConvertedIndex,'sim'] = similarity.cpu().detach().numpy()
+        res.loc[batchConvertedIndex,'weight'] = w.cpu().detach().numpy()
     return res
 
 def DCG(resultsDf, p=5, inplace=False, sim_column = 'sim'):
@@ -59,13 +59,13 @@ class DummyModel(nn.Module):
         i = torch.normal(1,0,(X_query_cat.shape[0], self.embedding_dim))
         return q, i
    
-def randomOrderingBenchmark(dataLoader):
-    model = DummyModel()
+def randomOrderingBenchmark(dataLoader, device='cpu'):
+    model = DummyModel().to(device)
     dcg = valDcg(dataLoader=dataLoader, model=model)
     return dcg
 
-def perfectOrderingBenchmark(dataLoader):
-    model = DummyModel()
+def perfectOrderingBenchmark(dataLoader, device='cpu'):
+    model = DummyModel().to(device)
     dcg = valDcg(dataLoader=dataLoader, model=model, sim_column='weight')
     return dcg
 

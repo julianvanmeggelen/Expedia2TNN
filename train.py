@@ -15,6 +15,10 @@ import pickle
 from config import modelCfg as defaultModelCfg
 import numpy as np
 
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def get_trainable_params(model):
     model_parameters = filter(lambda p: p.requires_grad, model.parameters())
     params = sum([np.prod(p.size()) for p in model_parameters])
@@ -42,14 +46,16 @@ def train(checkpoint_dir:str=None):
     with open(f"{logPath}/modelCfg.pkl", 'wb') as file: #save config used to logdir
         pickle.dump(modelCfg, file)
         print("Saved modelCfg to log")
-    
+
+    mod.to(DEVICE)
+    print(f"Using device: {DEVICE}")
     print(f"Number of trainable model parameters: {get_trainable_params(mod)}")
 
-    dl = TrainDataLoader(batch_size=tCfg.batch_size, negFrac=tCfg.negFrac, crossFrac=tCfg.crossFrac)
-    vdl = ValDataLoader(batch_size=10000)
-    random_dcg = randomOrderingBenchmark(dataLoader=vdl)
+    dl = TrainDataLoader(batch_size=tCfg.batch_size, negFrac=tCfg.negFrac, crossFrac=tCfg.crossFrac, device=DEVICE)
+    vdl = ValDataLoader(batch_size=10000, device=DEVICE)
+    random_dcg = randomOrderingBenchmark(dataLoader=vdl, device=DEVICE)
     print(f"Random ordering bechmark:{random_dcg}")
-    perfect_dcg = perfectOrderingBenchmark(dataLoader=vdl)
+    perfect_dcg = perfectOrderingBenchmark(dataLoader=vdl, device=DEVICE)
     print(f"Perfect ordering bechmark:{perfect_dcg}")
     untrained_dcg = valDcg(dataLoader=vdl, model=mod)
     print(f"Untrained model DCG: {untrained_dcg}")
