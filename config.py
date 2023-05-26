@@ -33,8 +33,8 @@ modelCfg.queryTowerCfg = queryTowerCfg
 # Training config
 trainCfg = mlc.ConfigDict() 
 trainCfg.n_epoch = 100
-trainCfg.batch_size = 196608
-trainCfg.lr = 0.03
+trainCfg.batch_size = 196608*2
+trainCfg.lr = 0.003
 trainCfg.negFrac = 0.3
 trainCfg.crossFrac = 0.2
 

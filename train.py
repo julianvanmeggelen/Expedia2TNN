@@ -1,7 +1,7 @@
 import ml_collections as mlc
 from model import getDefaultModel, weightedCoSim
 from data import TrainDataLoader, ValDataLoader
-from evaluate import valDcg, randomOrderingBenchmark, perfectOrderingBenchmark
+from evaluate import valDcg, randomOrderingBenchmark, perfectOrderingBenchmark, valLoss
 from config import trainCfg as tCfg
 import torch.optim as opt
 from tqdm import tqdm
@@ -76,9 +76,11 @@ def train(checkpoint_dir:str=None):
             writer.add_scalar('Loss/train/batch', loss.item(), nBatches*epoch +b)
             epochLoss+= loss.item()
         writer.add_scalar('Loss/train/epoch', epochLoss/nBatches, epoch)
+        val_loss = valLoss(vdl,mod)
         val_dcg = valDcg(model=mod, dataLoader= vdl)
         writer.add_scalar('dcg/val/epoch', val_dcg, epoch)
-        print(f"Train loss: {epochLoss/nBatches}, val DCG: {val_dcg}")
+        writer.add_scalar('dcg/val/loss', val_loss, epoch)
+        print(f"Train loss: {epochLoss/nBatches}, val loss: {val_loss} val DCG: {val_dcg}")
         epochLoss = 0.0
         torch.save(mod.state_dict(),logPath+f"/state_epoch_{epoch}")
 

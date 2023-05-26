@@ -5,6 +5,7 @@ from data import ValDataLoader
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from model import weightedCoSim
 
 def batchPredictCosineSimilarity(X_query_cat, X_query_num, X_item_cat, X_item_num, model):
     e_q, e_i = model(X_query_cat, X_query_num, X_item_cat, X_item_num)
@@ -41,6 +42,17 @@ def DCG(resultsDf, p=5, inplace=False, sim_column = 'sim'):
     dcg_df['dcg_partial'] = dcg_df['weight']/np.log2(dcg_df['rank']+1)
     dcg_vals = dcg_df[['index_srch_id','dcg_partial']].groupby('index_srch_id').sum()['dcg_partial']
     return dcg_vals.mean()
+
+
+def valLoss(dataLoader, model, verbose=False):
+    model.eval()
+    losses = 0.0
+    for  b, (X_query_cat, X_query_num, X_item_cat, X_item_num , w) in tqdm(enumerate(dl), total=dl.nBatches, hide=(not verbose)):
+        e_q, e_i = mod(X_query_cat, X_query_num, X_item_cat, X_item_num)
+        loss = weightedCoSim(w,e_q,e_i)
+        losses += loss.item()
+    model.train()
+    return losses/dl.nRecords
 
 def valDcg(dataLoader, model, sim_column = 'sim'):
     model.eval()
