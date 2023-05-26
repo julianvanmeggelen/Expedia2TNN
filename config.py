@@ -15,6 +15,8 @@ queryTowerCfg.embedding_dict_size = [len(maps_to_ind[k])+1 for k in QUERY_CAT_FE
 queryTowerCfg.numeric_dim = [len(QUERY_NUM_FEATURE_COLS)+len(QUERY_NUM_INDICATOR_COLS), 64]
 queryTowerCfg.shared_hidden_dim = [256, 128]
 queryTowerCfg.activation = nn.ReLU()
+queryTowerCfg.dropout =0.3 
+
 
 itemTowerCfg = mlc.ConfigDict()
 itemTowerCfg.embedding_dim = [defaultCatEmbeddingDim] * len(ITEM_CAT_FEATURE_COLS)
@@ -24,6 +26,8 @@ itemTowerCfg.embedding_dict_size = [len(maps_to_ind[k])+1 for k in ITEM_CAT_FEAT
 itemTowerCfg.numeric_dim = [len(ITEM_NUM_FEATURE_COLS)+len(ITEM_NUM_INDICATOR_COLS), 64, 128]
 itemTowerCfg.shared_hidden_dim = [256, 128]
 itemTowerCfg.activation = nn.ReLU()
+itemTowerCfg.dropout = 0.3
+
 
 modelCfg = mlc.ConfigDict()
 modelCfg.embedding_dim = 16

@@ -6,5 +6,6 @@ log
 __pycache__
 .DS_Store
 runs
-training_log
+training_log/*
 profile/*
+predictions/*

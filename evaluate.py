@@ -27,7 +27,8 @@ def valPrediction(model, valDataLoader, verbose=False):
         similarity = batchPredictCosineSimilarity(X_query_cat, X_query_num, X_item_cat, X_item_num , model)
         batchConvertedIndex = convertIndex(index)
         res.loc[batchConvertedIndex,'sim'] = similarity.cpu().detach().numpy()
-        res.loc[batchConvertedIndex,'weight'] = w.cpu().detach().numpy()
+        if w is not None:
+            res.loc[batchConvertedIndex,'weight'] = w.cpu().detach().numpy()
     return res
 
 def DCG(resultsDf, p=5, inplace=False, sim_column = 'sim'):

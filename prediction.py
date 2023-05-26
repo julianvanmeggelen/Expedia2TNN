@@ -11,7 +11,6 @@ from data import ValDataLoader, TEST_INDEX_ARRAY_PATH, getTestArrays
 from evaluate import valPrediction
 from model import getDefaultModel
 
-PRED_SAVE_DIR = './predictions.csv'
 PRED_DIR = './predictions/'
 
 def makePrediction(checkpoint_dir, p=5):
@@ -28,8 +27,10 @@ def makePrediction(checkpoint_dir, p=5):
     resultsDf = resultsDf.sort_values(by=['index_srch_id', 'sim'], ascending=False)
     resultsDf['rank'] = resultsDf.groupby(by=['index_srch_id', 'sim']).cumcount()+1
     resultsDf = resultsDf.groupby('index_srch_id').head(p) #only keep p best predictions
-    savedir = f"{PRED_DIR}predictions_{datetime.now()}"
-    resultsDf[['srch_id', 'prop_id']].reset_index(drop=True).to_csv(savedir)
+    savedir = f"{PRED_DIR}predictions_{datetime.now()}.csv"
+    resultsDf = resultsDf[['index_srch_id', 'index_prop_id']]
+    resultsDf.columns = ['srch_id','prop_id']
+    resultsDf.reset_index(drop=True).to_csv(savedir, index=False)
     print(f"saved predictions to {savedir}")
 
 

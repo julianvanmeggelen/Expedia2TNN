@@ -4,8 +4,9 @@ import torch.nn.functional as F
 from config import modelCfg as defaultModelCfg
 
 class Tower(nn.Module):
-    def __init__(self, embedding_dim: list, embedding_dict_size:list, numeric_dim:list, shared_hidden_dim:list, output_embedding_dim, activation=nn.ReLU):
+    def __init__(self, embedding_dim: list, embedding_dict_size:list, numeric_dim:list, shared_hidden_dim:list, output_embedding_dim, activation=nn.ReLU, dropout=None):
         super().__init__()
+        self.dropout = dropout
         self.embeddings = nn.ModuleList([nn.Embedding(num_embeddings=s, embedding_dim=d) for (d,s) in zip(embedding_dim, embedding_dict_size)])
         nCatFeatures = len(embedding_dim)
         self.activation = activation
@@ -36,6 +37,9 @@ class Tower(nn.Module):
             num_out = self.activation(num_out) 
 
         x = torch.cat(embeddings + [num_out], dim=1)
+
+        if self.dropout:
+            x = nn.Dropout(p=self.dropout)
 
         query_embedding_out = x
         for i, l in enumerate(self.shared_ffw):

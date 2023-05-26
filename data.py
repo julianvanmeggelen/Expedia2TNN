@@ -53,7 +53,8 @@ QUERY_NUM_INDICATOR_COLS = [
 
 QUERY_CAT_FEATURE_COLS = [ #Cat columns first! 
     #'srch_id'
-    ,'site_id'
+    #,
+    'site_id'
     ,'visitor_location_country_id'
     ,'srch_length_of_stay'
     ,'srch_booking_window'
