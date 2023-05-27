@@ -38,7 +38,7 @@ def DCG(resultsDf, p=5, inplace=False, sim_column = 'sim'):
     else:
         dcg_df = resultsDf.copy()
     dcg_df = dcg_df.sort_values(by=['index_srch_id', sim_column], ascending=False)
-    dcg_df['rank'] = dcg_df.groupby(by=['index_srch_id', sim_column]).cumcount()+1
+    dcg_df['rank'] = dcg_df.groupby(by=['index_srch_id']).cumcount()+1
     dcg_df = dcg_df.groupby('index_srch_id').head(p) #only keep p best predictions
     dcg_df['dcg_partial'] = dcg_df['weight']/np.log2(dcg_df['rank']+1)
     dcg_vals = dcg_df[['index_srch_id','dcg_partial']].groupby('index_srch_id').sum()['dcg_partial']

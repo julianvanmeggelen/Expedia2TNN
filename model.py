@@ -38,8 +38,8 @@ class Tower(nn.Module):
         for i, l in enumerate(self.embeddings):
             emb = l(X_cat[:,i])
             embeddings.append(emb)
-
-        num_out = self.num_batchnorm(X_num)
+        num_out = X_num
+        #num_out = self.num_batchnorm(X_num)
         for i, l in enumerate(self.numeric_ffw):
             num_out = l(num_out)
             num_out = self.activation(num_out) 
@@ -82,25 +82,25 @@ def getDefaultModel(modelCfg = None):
         modelCfg = defaultModelCfg
     return RecModel(modelCfg.embedding_dim, query_tower_args=dict(modelCfg.queryTowerCfg), item_tower_args = dict(modelCfg.itemTowerCfg))
 
+# def weightedCoSim(w, q, i):
+#     """
+#     w: (batch_size)
+#     q: (batch_size, embedding_dim)
+#     i: (batch_size, embedding_dim)
+#     """
+#     return torch.mean(-w * F.cosine_similarity(q, i, dim=1))
+
+
 def weightedCoSim(w, q, i):
     """
     w: (batch_size)
     q: (batch_size, embedding_dim)
     i: (batch_size, embedding_dim)
     """
-    return torch.mean(-w * F.cosine_similarity(q, i, dim=1))
-
-
-# def weightedCoSim(w, q, i):
-#    """
-#     w: (batch_size)
-#     q: (batch_size, embedding_dim)
-#     i: (batch_size, embedding_dim)
-#     """
-#     y = torch.where(w>0,1,-1)
-#     loss  = F.cosine_embedding_loss(q, i, w, reduction='mean')
-#     #w_use = torch.where(w>1,5,1)
-#     return loss#torch.mean(w_use * loss)
+    y = torch.where(w>0,1,-1)
+    loss  = F.cosine_embedding_loss(q, i, w, reduction='mean')
+    #w_use = torch.where(w>1,5,1)
+    return loss#torch.mean(w_use * loss)
 
       
 

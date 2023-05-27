@@ -24,7 +24,7 @@ def get_trainable_params(model):
     params = sum([np.prod(p.size()) for p in model_parameters])
     return params
 
-def train(checkpoint_dir:str=None, epochs=None):
+def train(checkpoint_dir:str=None, epochs=None, evalInterval=5):
 
     if checkpoint_dir: #load checkpoint
         print("Loading checkpoint")
@@ -82,10 +82,13 @@ def train(checkpoint_dir:str=None, epochs=None):
             epochLoss+= loss.item()
         writer.add_scalar('Loss/train/epoch', epochLoss/nBatches, epoch)
         val_loss = valLoss(vdl,mod)
-        val_dcg = valDcg(model=mod, dataLoader= vdl)
-        writer.add_scalar('dcg/val/epoch', val_dcg, epoch)
         writer.add_scalar('Loss/val/epoch', val_loss, epoch)
-        print(f"Train loss: {epochLoss/nBatches}, val loss: {val_loss} val DCG: {val_dcg}")
+
+        if epoch%evalInterval == 0:
+            val_dcg = valDcg(model=mod, dataLoader= vdl)
+            writer.add_scalar('dcg/val/epoch', val_dcg, epoch)
+            print( f"val DCG: {val_dcg}")
+        print(f"Train loss: {epochLoss/nBatches}, val loss: {val_loss}")
         epochLoss = 0.0
         if val_dcg > bestValDcg:
             print(f"New best DCG@5 on val set ({val_dcg}>{bestValDcg}), saving checkpoint")

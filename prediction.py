@@ -25,7 +25,7 @@ def makePrediction(checkpoint_dir, p=5):
     print("Loaded state dict")
     resultsDf = valPrediction(valDataLoader=tdl, model=mod, verbose=True)
     resultsDf = resultsDf.sort_values(by=['index_srch_id', 'sim'], ascending=False)
-    resultsDf['rank'] = resultsDf.groupby(by=['index_srch_id', 'sim']).cumcount()+1
+    resultsDf['rank'] = resultsDf.groupby(by=['index_srch_id']).cumcount()+1
     resultsDf = resultsDf.groupby('index_srch_id').head(p) #only keep p best predictions
     savedir = f"{PRED_DIR}predictions_{datetime.now()}.csv"
     resultsDf = resultsDf[['index_srch_id', 'index_prop_id']]
@@ -35,6 +35,9 @@ def makePrediction(checkpoint_dir, p=5):
 
 
 if __name__ == "__main__":
+    if not os.path.exists('./predictions'):
+        os.mkdir('./predictions')
+
     parser = argparse.ArgumentParser(description='Make predictions using the model')
     parser.add_argument('--checkpoint_dir', type=str,
                         help='Checkpoint directory')
