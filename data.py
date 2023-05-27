@@ -37,6 +37,9 @@ TEST_QUERY_ARRAY_PATH = DATA_DIR+'test_query.npy'
 TEST_ITEM_ARRAY_PATH = DATA_DIR+'test_item.npy'
 TEST_REL_ARRAY_PATH = DATA_DIR+'test_rel.npy'
 
+
+ADD_INDICATOR = False
+
 QUERY_NUM_FEATURE_COLS = [ #Cat columns first! 
     'visitor_hist_starrating'
     ,'visitor_hist_adr_usd'
@@ -66,36 +69,38 @@ QUERY_CAT_FEATURE_COLS = [ #Cat columns first!
     ,'random_bool'
 ]
 
-QUERY_FEATURE_COLS = QUERY_CAT_FEATURE_COLS + QUERY_NUM_FEATURE_COLS + QUERY_NUM_INDICATOR_COLS
+QUERY_FEATURE_COLS = QUERY_CAT_FEATURE_COLS + QUERY_NUM_FEATURE_COLS 
+if ADD_INDICATOR:
+    QUERY_FEATURE_COLS+=QUERY_NUM_INDICATOR_COLS
 
 ITEM_NUM_FEATURE_COLS = [
     'prop_review_score'
     ,'prop_location_score1'
     ,'prop_location_score2'
     ,'price_usd'
-    ,'comp1_rate_percent_diff'
-    ,'comp2_rate'
-    ,'comp2_inv'
-    ,'comp2_rate_percent_diff'
-    ,'comp3_rate'
-    ,'comp3_inv'
-    ,'comp3_rate_percent_diff'
-    ,'comp4_rate'
-    ,'comp4_inv'
-    ,'comp4_rate_percent_diff'
-    ,'comp5_rate'
-    ,'comp5_inv'
-    ,'comp5_rate_percent_diff'
-    ,'comp6_rate'
-    ,'comp6_inv'
-    ,'comp6_rate_percent_diff'
-    ,'comp7_rate'
-    ,'comp7_inv'
-    ,'comp7_rate_percent_diff'
-    ,'comp8_rate'
-    ,'comp8_inv'
-    ,'comp8_rate_percent_diff'
-    ,'prop_log_historical_price'
+    #,'comp1_rate_percent_diff'
+    #,'comp2_rate'
+    #,'comp2_inv'
+    #,'comp2_rate_percent_diff'
+    #,'comp3_rate'
+    #,'comp3_inv'
+    #,'comp3_rate_percent_diff'
+    #,'comp4_rate'
+    #,'comp4_inv'
+    #,'comp4_rate_percent_diff'
+    #,'comp5_rate'
+    #,'comp5_inv'
+    #,'comp5_rate_percent_diff'
+    #,'comp6_rate'
+    #,'comp6_inv'
+    #,'comp6_rate_percent_diff'
+    #,'comp7_rate'
+    #,'comp7_inv'
+    #,'comp7_rate_percent_diff'
+    #,'comp8_rate'
+    #,'comp8_inv'
+    #,'comp8_rate_percent_diff'
+    #,'prop_log_historical_price'
     #,'comp1_rate'
 ]
 
@@ -136,7 +141,9 @@ ITEM_CAT_FEATURE_COLS = [
     #,'comp1_inv'
 ]
 
-ITEM_FEATURE_COLS = ITEM_CAT_FEATURE_COLS + ITEM_NUM_FEATURE_COLS + ITEM_NUM_INDICATOR_COLS
+ITEM_FEATURE_COLS = ITEM_CAT_FEATURE_COLS + ITEM_NUM_FEATURE_COLS 
+if ADD_INDICATOR:
+    ITEM_FEATURE_COLS+=ITEM_NUM_INDICATOR_COLS
 
 CAT_FEATURE_COLS = QUERY_CAT_FEATURE_COLS + ITEM_CAT_FEATURE_COLS
 NUM_FEATURE_COLS = QUERY_NUM_FEATURE_COLS + ITEM_NUM_FEATURE_COLS
@@ -197,18 +204,20 @@ def valueReplace(df_in, inplace=True):
             df = df.replace(to_replace=to_replace, value=value)
     return df
 
-def addNaNIndicator(df_in, inplace=True):
+def processNan(df_in, inplace=True, add_indicator=False):
     if not inplace:
         df = df_in.copy()
     else:
         df = df_in
 
-    res = {}
-    for col in df.columns:
-        nan = df[col].isna()
-        if np.sum(nan)>0:
-            df[f'{col}_isNaN'] = nan.astype('int64')
-            res[col] = f'{col}_isNaN'
+    res=None
+    if add_indicator:
+        res = {}
+        for col in df.columns:
+            nan = df[col].isna()
+            if np.sum(nan)>0:
+                df[f'{col}_isNaN'] = nan.astype('int64')
+                res[col] = f'{col}_isNaN'
     df=fillNaN(df)
     return df, res
 
@@ -243,7 +252,7 @@ def getTrainData(useCached = True):
         df_train['index_prop_id'] = df_train['prop_id']
         maps_to_ind, maps_from_ind = getMappings(df_train, useCached=useCached, train=True)
         df_train = applyMapping(df_train, maps_to_ind, inplace=True)
-        df_train, nanIndicColumns = addNaNIndicator(df_train)
+        df_train, nanIndicColumns = processNan(df_train)
         #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
         with open(TRAIN_SET_PATH, 'wb') as handle:
             pickle.dump(df_train, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -261,7 +270,7 @@ def getValData(useCached = True):
         df_val['index_prop_id'] = df_val['prop_id']
         maps_to_ind, maps_from_ind = getMappings(df_val, useCached=True, train=False)
         df_val = applyMapping(df_val, maps_to_ind, inplace=True)
-        df_val, nanIndicColumns = addNaNIndicator(df_val)
+        df_val, nanIndicColumns = processNan(df_val)
         #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
         with open(VAL_SET_PATH, 'wb') as handle:
             pickle.dump(df_val, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -282,7 +291,7 @@ def getTestData(useCached = True):
         maps_to_ind, maps_from_ind = getMappings(df_test, useCached=True, train=False)
         df_test = applyMapping(df_test, maps_to_ind, inplace=True)
         print('Applied mapping')
-        df_test, nanIndicColumns = addNaNIndicator(df_test)
+        df_test, nanIndicColumns = processNan(df_test)
         #df_train = df_train[CAT_FEATURE_COLS + list(df_train.columns.difference(CAT_FEATURE_COLS))] # move cat columns to the front
         with open(TEST_SET_PATH, 'wb') as handle:
             pickle.dump(df_test, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -518,6 +527,9 @@ class ValDataLoader(): #simply return batches, but one srch_id may not be spread
         return  X_query_cat, X_query_num, X_item_cat, X_item_num , w, index
             
 if __name__ == "__main__":
+    if not os.path.exists('./data'):
+        os.mkdir('./data')
+
     if not os.path.exists(RAW_TRAIN_DATA_PATH):
         print(f"Splitting into train/val")
         createRawFiles() 

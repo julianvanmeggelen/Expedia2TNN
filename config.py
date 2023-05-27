@@ -1,7 +1,7 @@
 import ml_collections as mlc
 import torch.nn as nn
-from data import QUERY_CAT_FEATURE_COLS, QUERY_NUM_FEATURE_COLS, ITEM_CAT_FEATURE_COLS, ITEM_NUM_FEATURE_COLS, ITEM_NUM_INDICATOR_COLS, QUERY_NUM_INDICATOR_COLS, getMappings
-defaultCatEmbeddingDim = 4
+from data import QUERY_CAT_FEATURE_COLS, QUERY_NUM_FEATURE_COLS, ITEM_CAT_FEATURE_COLS, ITEM_NUM_FEATURE_COLS, ITEM_NUM_INDICATOR_COLS, QUERY_NUM_INDICATOR_COLS, getMappings, ADD_INDICATOR
+defaultCatEmbeddingDim = 8
 
 
 maps_to_ind, _ = getMappings(train=True)
@@ -12,37 +12,34 @@ queryTowerCfg.embedding_dim = [defaultCatEmbeddingDim] * len(QUERY_CAT_FEATURE_C
 #queryTowerCfg.embedding_dict_size = [len(v)+1 for k,v in maps_to_ind.items() if k in QUERY_CAT_FEATURE_COLS]
 queryTowerCfg.embedding_dict_size = [len(maps_to_ind[k])+1 for k in QUERY_CAT_FEATURE_COLS if k in maps_to_ind.keys()]
 
-queryTowerCfg.numeric_dim = [len(QUERY_NUM_FEATURE_COLS)+len(QUERY_NUM_INDICATOR_COLS), 64]
-queryTowerCfg.shared_hidden_dim = [128, 64]
+queryTowerCfg.numeric_dim = [len(QUERY_NUM_FEATURE_COLS)+(len(QUERY_NUM_INDICATOR_COLS) if ADD_INDICATOR else 0), 16]
+queryTowerCfg.shared_hidden_dim = [32, 16]
 queryTowerCfg.activation = nn.ReLU()
-queryTowerCfg.dropout =0.3 
-queryTowerCfg.useAttention = True
-
+queryTowerCfg.dropout =0.5
+queryTowerCfg.useAttention = False
 
 itemTowerCfg = mlc.ConfigDict()
 itemTowerCfg.embedding_dim = [defaultCatEmbeddingDim] * len(ITEM_CAT_FEATURE_COLS)
 #itemTowerCfg.embedding_dict_size = [len(v)+1 for k,v in maps_to_ind.items() if k in ITEM_CAT_FEATURE_COLS]
 itemTowerCfg.embedding_dict_size = [len(maps_to_ind[k])+1 for k in ITEM_CAT_FEATURE_COLS if k in maps_to_ind.keys()]
 
-itemTowerCfg.numeric_dim = [len(ITEM_NUM_FEATURE_COLS)+len(ITEM_NUM_INDICATOR_COLS), 64]
-itemTowerCfg.shared_hidden_dim = [128, 64]
+itemTowerCfg.numeric_dim = [len(ITEM_NUM_FEATURE_COLS)+(len(ITEM_NUM_INDICATOR_COLS)if ADD_INDICATOR else 0), 16]
+itemTowerCfg.shared_hidden_dim = [32, 16]
 itemTowerCfg.activation = nn.ReLU()
-itemTowerCfg.dropout = 0.3
-itemTowerCfg.useAttention = True
-
-
+itemTowerCfg.dropout = 0.5
+itemTowerCfg.useAttention = False
 
 modelCfg = mlc.ConfigDict()
-modelCfg.embedding_dim = 8
+modelCfg.embedding_dim = 32
 modelCfg.itemTowerCfg = itemTowerCfg
 modelCfg.queryTowerCfg = queryTowerCfg
 
 # Training config
 trainCfg = mlc.ConfigDict() 
 trainCfg.n_epoch = 100
-trainCfg.batch_size = 196608*2
+trainCfg.batch_size = 196608
 trainCfg.lr = 0.003
-trainCfg.negFrac = 0.3
+trainCfg.negFrac = 0.2
 trainCfg.crossFrac = 0.2
 
 

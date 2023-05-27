@@ -51,13 +51,14 @@ def train(checkpoint_dir:str=None, epochs=None):
     mod.to(DEVICE)
     print(f"Using device: {DEVICE}")
     print(f"Number of trainable model parameters: {get_trainable_params(mod)}")
+    print(mod)
 
     dl = TrainDataLoader(batch_size=tCfg.batch_size, negFrac=tCfg.negFrac, crossFrac=tCfg.crossFrac, device=DEVICE)
     vdl = ValDataLoader(batch_size=10000, device=DEVICE)
-    random_dcg = randomOrderingBenchmark(dataLoader=vdl, device=DEVICE)
-    print(f"Random ordering bechmark:{random_dcg}")
-    perfect_dcg = perfectOrderingBenchmark(dataLoader=vdl, device=DEVICE)
-    print(f"Perfect ordering bechmark:{perfect_dcg}")
+    #random_dcg = randomOrderingBenchmark(dataLoader=vdl, device=DEVICE)
+    #print(f"Random ordering bechmark:{random_dcg}")
+    #perfect_dcg = perfectOrderingBenchmark(dataLoader=vdl, device=DEVICE)
+    #print(f"Perfect ordering bechmark:{perfect_dcg}")
     untrained_dcg = valDcg(dataLoader=vdl, model=mod)
     print(f"Untrained model DCG: {untrained_dcg}")
 
@@ -93,6 +94,9 @@ def train(checkpoint_dir:str=None, epochs=None):
 
 
 if __name__ == "__main__":
+    if not os.path.exists('./training_log'):
+        os.mkdir('./training_log')
+
     parser = argparse.ArgumentParser(description='Train the model')
     parser.add_argument('--checkpoint_dir', type=str,
                         help='Checkpoint directory')
@@ -101,6 +105,6 @@ if __name__ == "__main__":
                         help='Checkpoint directory')
 
     args = parser.parse_args()
-    train(checkpoint_dir=args.checkpoint_dir, epochs=int(args.epochs))
+    train(checkpoint_dir=args.checkpoint_dir, epochs=int(args.epochs) if args.epochs else None)
     
 

@@ -6,6 +6,7 @@ from config import modelCfg as defaultModelCfg
 class Tower(nn.Module):
     def __init__(self, embedding_dim: list, embedding_dict_size:list, numeric_dim:list, shared_hidden_dim:list, output_embedding_dim, activation=nn.ReLU, dropout=None, useAttention=False):
         super().__init__()
+        self.useAttention = useAttention
         self.dropout = dropout
         self.embeddings = nn.ModuleList([nn.Embedding(num_embeddings=s, embedding_dim=d) for (d,s) in zip(embedding_dim, embedding_dict_size)])
         nCatFeatures = len(embedding_dim)
@@ -19,6 +20,7 @@ class Tower(nn.Module):
         self.shared_ffw.extend([nn.Linear(shared_hidden_dim[i],shared_hidden_dim[i+1]) for i in range(len(shared_hidden_dim)-1)])
         self.shared_ffw.append(nn.Linear(shared_hidden_dim[-1], output_embedding_dim))
 
+        self.num_batchnorm = nn.BatchNorm1d(num_features=numeric_dim[0])
 
         #Attention
         if useAttention:
@@ -37,14 +39,15 @@ class Tower(nn.Module):
             emb = l(X_cat[:,i])
             embeddings.append(emb)
 
-        num_out = X_num
+        num_out = self.num_batchnorm(X_num)
         for i, l in enumerate(self.numeric_ffw):
             num_out = l(num_out)
             num_out = self.activation(num_out) 
 
         x = torch.cat(embeddings + [num_out], dim=1)
 
-        x = self.att(x,x,x)
+        if self.useAttention:
+            x,_ = self.att(x,x,x, need_weights=False)
 
         if self.dropout:
             x = nn.Dropout(p=self.dropout)(x)
@@ -86,5 +89,18 @@ def weightedCoSim(w, q, i):
     i: (batch_size, embedding_dim)
     """
     return torch.mean(-w * F.cosine_similarity(q, i, dim=1))
+
+
+# def weightedCoSim(w, q, i):
+#    """
+#     w: (batch_size)
+#     q: (batch_size, embedding_dim)
+#     i: (batch_size, embedding_dim)
+#     """
+#     y = torch.where(w>0,1,-1)
+#     loss  = F.cosine_embedding_loss(q, i, w, reduction='mean')
+#     #w_use = torch.where(w>1,5,1)
+#     return loss#torch.mean(w_use * loss)
+
       
 
