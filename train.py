@@ -65,6 +65,7 @@ def train(checkpoint_dir:str=None, epochs=None, evalInterval=5):
     optimizer = opt.Adam(params=mod.parameters(), lr = tCfg.lr)
 
     nBatches = len(dl)
+    nRecords = dl.nRecords
     epochLoss = 0.0
     bestValDcg = untrained_dcg
     if epochs:
@@ -80,7 +81,7 @@ def train(checkpoint_dir:str=None, epochs=None, evalInterval=5):
             #print(f"Batch {b} - {loss.item():.5f}")
             writer.add_scalar('Loss/train/batch', loss.item(), nBatches*epoch +b)
             epochLoss+= loss.item()
-        writer.add_scalar('Loss/train/epoch', epochLoss/nBatches, epoch)
+        writer.add_scalar('Loss/train/epoch', epochLoss/nRecords, epoch)
         val_loss = valLoss(vdl,mod)
         writer.add_scalar('Loss/val/epoch', val_loss, epoch)
 
@@ -88,7 +89,7 @@ def train(checkpoint_dir:str=None, epochs=None, evalInterval=5):
             val_dcg = valDcg(model=mod, dataLoader= vdl)
             writer.add_scalar('dcg/val/epoch', val_dcg, epoch)
             print( f"val DCG: {val_dcg}")
-        print(f"Train loss: {epochLoss/nBatches}, val loss: {val_loss}")
+        print(f"Train loss: {epochLoss/nRecords}, val loss: {val_loss}")
         epochLoss = 0.0
         if val_dcg > bestValDcg:
             print(f"New best DCG@5 on val set ({val_dcg}>{bestValDcg}), saving checkpoint")
