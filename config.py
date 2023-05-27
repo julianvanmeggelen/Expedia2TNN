@@ -16,6 +16,7 @@ queryTowerCfg.numeric_dim = [len(QUERY_NUM_FEATURE_COLS)+len(QUERY_NUM_INDICATOR
 queryTowerCfg.shared_hidden_dim = [128, 64]
 queryTowerCfg.activation = nn.ReLU()
 queryTowerCfg.dropout =0.3 
+queryTowerCfg.useAttention = True
 
 
 itemTowerCfg = mlc.ConfigDict()
@@ -27,6 +28,8 @@ itemTowerCfg.numeric_dim = [len(ITEM_NUM_FEATURE_COLS)+len(ITEM_NUM_INDICATOR_CO
 itemTowerCfg.shared_hidden_dim = [128, 64]
 itemTowerCfg.activation = nn.ReLU()
 itemTowerCfg.dropout = 0.3
+itemTowerCfg.useAttention = True
+
 
 
 modelCfg = mlc.ConfigDict()

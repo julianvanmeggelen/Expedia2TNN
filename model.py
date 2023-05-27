@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from config import modelCfg as defaultModelCfg
 
 class Tower(nn.Module):
-    def __init__(self, embedding_dim: list, embedding_dict_size:list, numeric_dim:list, shared_hidden_dim:list, output_embedding_dim, activation=nn.ReLU, dropout=None):
+    def __init__(self, embedding_dim: list, embedding_dict_size:list, numeric_dim:list, shared_hidden_dim:list, output_embedding_dim, activation=nn.ReLU, dropout=None, useAttention=False):
         super().__init__()
         self.dropout = dropout
         self.embeddings = nn.ModuleList([nn.Embedding(num_embeddings=s, embedding_dim=d) for (d,s) in zip(embedding_dim, embedding_dict_size)])
@@ -18,6 +18,12 @@ class Tower(nn.Module):
         self.shared_ffw = nn.ModuleList([nn.Linear(shared_ffw_inputsize, shared_hidden_dim[0])])
         self.shared_ffw.extend([nn.Linear(shared_hidden_dim[i],shared_hidden_dim[i+1]) for i in range(len(shared_hidden_dim)-1)])
         self.shared_ffw.append(nn.Linear(shared_hidden_dim[-1], output_embedding_dim))
+
+
+        #Attention
+        if useAttention:
+            num_heads=  1
+            self.att = nn.MultiheadAttention(shared_ffw_inputsize, num_heads, batch_first=True)
 
     def forward(self, X_cat, X_num):
         """
@@ -37,6 +43,8 @@ class Tower(nn.Module):
             num_out = self.activation(num_out) 
 
         x = torch.cat(embeddings + [num_out], dim=1)
+
+        x = self.att(x,x,x)
 
         if self.dropout:
             x = nn.Dropout(p=self.dropout)(x)
